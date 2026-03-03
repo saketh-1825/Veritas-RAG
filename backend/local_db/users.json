@@ -1,0 +1,72 @@
+[
+  {
+    "email": "user@gmail.com",
+    "username": "Rithvik",
+    "role": "user",
+    "is_active": true,
+    "_id": "0ee83438-c1fd-4f16-acba-3e1e5636415d",
+    "hashed_password": "$2b$12$v1tYuO6zBGF4A0X7Y3qj6OJjTtr2ucJhCNUDO7V0wzOsiCD/oxjvu",
+    "created_at": "2026-09-08T18:41:21.054264Z",
+    "updated_at": "2026-09-08T18:41:21.054264Z"
+  },
+  {
+    "email": "admin@example.com",
+    "username": "admin",
+    "role": "user",
+    "is_active": true,
+    "_id": "aa99e854-4433-4052-8d24-16299c9e7490",
+    "hashed_password": "$2b$12$r7C4l7k9bSOaQbz.OWCAhO1JIj3f6z0egR3MEmAEVpxReUtLNejym",
+    "created_at": "2026-09-08T18:42:29.439434Z",
+    "updated_at": "2026-09-08T18:42:29.439434Z"
+  },
+  {
+    "email": "newuser1@example.com",
+    "username": "newuser1",
+    "role": "user",
+    "is_active": true,
+    "_id": "057fd10e-a433-4770-a94d-fb8cbb4a42d6",
+    "hashed_password": "$2b$12$69Vo3XmXUk0MX/nMiILXKOoO9gYh61RWoX7reAZFfeh2gaggOfdfy",
+    "created_at": "2026-09-08T18:43:25.703250Z",
+    "updated_at": "2026-09-08T18:43:25.703250Z"
+  },
+  {
+    "email": "user2@example.com",
+    "username": "user2",
+    "role": "user",
+    "is_active": true,
+    "_id": "ba08fe2f-1f7f-4f28-9282-93cc186b1cfe",
+    "hashed_password": "$2b$12$prQCxrPPqFQhBEL6S5fCO.TxBkhaqXVYzGUJawjg46a68HtN/uuHG",
+    "created_at": "2026-09-08T18:44:00.376363Z",
+    "updated_at": "2026-09-08T18:44:00.376363Z"
+  },
+  {
+    "email": "test3@example.com",
+    "username": "test3",
+    "role": "user",
+    "is_active": true,
+    "_id": "79912237-62be-4b9a-b211-aaa1c51f42ab",
+    "hashed_password": "$2b$12$hmUJllfN5FOomxgeHN6XYenEbG13wDpD7.EkBzT9KvyllWYzX6hDG",
+    "created_at": "2026-09-08T18:44:28.773520Z",
+    "updated_at": "2026-09-08T18:44:28.773520Z"
+  },
+  {
+    "email": "alice@example.com",
+    "username": "alice",
+    "role": "user",
+    "is_active": true,
+    "_id": "67173165-eca7-47bf-a1f0-e6ba541cf3c9",
+    "hashed_password": "$2b$12$MlWloGuFTUMQD179WYn1r.CG7S7Y95zd.4tprVEVEoNTW95KbPEti",
+    "created_at": "2026-09-08T18:45:43.141163Z",
+    "updated_at": "2026-09-08T18:45:43.141163Z"
+  },
+  {
+    "email": "sankeesaroysaketh@gmail.com",
+    "username": "Saketh1",
+    "role": "user",
+    "is_active": true,
+    "_id": "d25043c1-ed74-40df-bc97-3b8656dc370c",
+    "hashed_password": "$2b$12$OqRe7O3TeMNCzPxiCMGdLemciLv.Y0l4Y1JOYpXqIHSFzPaJjb4ue",
+    "created_at": "2026-09-08T19:17:44.589911Z",
+    "updated_at": "2026-09-08T19:17:44.589911Z"
+  }
+]
