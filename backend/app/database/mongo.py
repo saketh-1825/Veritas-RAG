@@ -33,9 +33,8 @@ async def connect_to_mongo():
         await db.db["evaluations"].create_index("document_id")
     except Exception as e:
         logger.error(f"Failed to connect to MongoDB: {e}")
-        logger.warning("Falling back to local JSON-based mock database for seamless operations.")
-        db.client = "mock_client"
-        db.db = MockDatabase("local_db")
+        raise
+    
 async def close_mongo_connection():
     logger.info("Closing MongoDB connection...")
     if db.client and hasattr(db.client, "close"):
