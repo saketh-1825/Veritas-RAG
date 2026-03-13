@@ -43,3 +43,6 @@ dist/
 
 # macOS
 .DS_Store
+
+#postman
+postman
