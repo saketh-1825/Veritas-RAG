@@ -4,26 +4,9 @@ import AuthPage from './components/AuthPage';
 import Sidebar from './components/Sidebar';
 import ChatConsole from './components/ChatConsole';
 import AnalyticsView from './components/AnalyticsView';
-
-// Initial mock dataset for standalone UI development phase
-const INITIAL_MOCK_DOCUMENTS = [
-  {
-    id: 'doc-001',
-    filename: 'veritas_architecture_v1.pdf',
-    size: 524288,
-    processing_status: 'processed',
-    chunk_count: 24,
-    created_at: '2026-03-05T10:00:00Z',
-  },
-  {
-    id: 'doc-002',
-    filename: 'enterprise_security_compliance.txt',
-    size: 148576,
-    processing_status: 'processed',
-    chunk_count: 8,
-    created_at: '2026-03-06T12:30:00Z',
-  },
-];
+import authService from './services/authService';
+import documentService from './services/documentService';
+import { checkBackendHealth } from './services/apiClient';
 
 const INITIAL_MOCK_ANALYTICS = {
   summary: {
@@ -34,11 +17,11 @@ const INITIAL_MOCK_ANALYTICS = {
     hallucination_rate: 0.045,
   },
   daily_stats: [
-    { date: '2026-03-02', count: 18, avg_latency: 520, avg_faithfulness: 0.88, hallucination_rate: 0.08 },
-    { date: '2026-03-03', count: 24, avg_latency: 480, avg_faithfulness: 0.91, hallucination_rate: 0.06 },
-    { date: '2026-03-04', count: 32, avg_latency: 440, avg_faithfulness: 0.93, hallucination_rate: 0.05 },
-    { date: '2026-03-05', count: 28, avg_latency: 410, avg_faithfulness: 0.95, hallucination_rate: 0.04 },
-    { date: '2026-03-06', count: 35, avg_latency: 395, avg_faithfulness: 0.96, hallucination_rate: 0.03 },
+    { date: '2026-03-02', count: 18, avg_latency_ms: 520, avg_faithfulness: 0.88, hallucination_rate: 0.08 },
+    { date: '2026-03-03', count: 24, avg_latency_ms: 480, avg_faithfulness: 0.91, hallucination_rate: 0.06 },
+    { date: '2026-03-04', count: 32, avg_latency_ms: 440, avg_faithfulness: 0.93, hallucination_rate: 0.05 },
+    { date: '2026-03-05', count: 28, avg_latency_ms: 410, avg_faithfulness: 0.95, hallucination_rate: 0.04 },
+    { date: '2026-03-06', count: 35, avg_latency_ms: 395, avg_faithfulness: 0.96, hallucination_rate: 0.03 },
   ],
   recent_evaluations: [
     {
@@ -74,10 +57,10 @@ export default function App() {
   });
 
   const [backendStatus, setBackendStatus] = useState({
-    status: 'Standby (Mock Mode - Decoupled UI)',
-    environment: 'development-prototype',
+    status: 'Standby / Local Mock',
+    environment: 'development',
     backend: 'FastAPI',
-    version: '0.2.0-mock',
+    version: 'v0.2.0',
   });
 
   const [loading, setLoading] = useState(false);
@@ -86,7 +69,7 @@ export default function App() {
   const location = useLocation();
 
   // Knowledge base state
-  const [documents, setDocuments] = useState(INITIAL_MOCK_DOCUMENTS);
+  const [documents, setDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState('');
   const [fileToUpload, setFileToUpload] = useState(null);
@@ -123,29 +106,86 @@ export default function App() {
     }
   }, [chatHistory, chatLoading, location.pathname]);
 
-  // Auth Handlers (Client-Side Simulation)
+  // Check backend health & sync user session
+  useEffect(() => {
+    let isMounted = true;
+    const syncStatus = async () => {
+      const health = await checkBackendHealth();
+      if (!isMounted) return;
+      if (health.online) {
+        setBackendStatus({
+          status: 'Online (FastAPI)',
+          environment: health.data?.environment || 'production',
+          backend: 'FastAPI',
+          version: health.data?.version || 'v0.2.0',
+        });
+      } else {
+        setBackendStatus({
+          status: 'Offline / Standalone',
+          environment: 'development',
+          backend: 'FastAPI',
+          version: 'v0.2.0-fallback',
+        });
+      }
+    };
+
+    const initAuth = async () => {
+      const stored = localStorage.getItem('rag_token');
+      if (stored && !stored.startsWith('mock_')) {
+        try {
+          const profile = await authService.getMe();
+          if (isMounted && profile) {
+            setUser(profile);
+          }
+        } catch {
+          // Token expired or server unreachable
+        }
+      }
+    };
+
+    syncStatus();
+    initAuth();
+    const interval = setInterval(syncStatus, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Fetch documents using documentService
+  const fetchDocuments = useCallback(async () => {
+    setLoadingDocs(true);
+    try {
+      const docs = await documentService.listDocuments();
+      setDocuments(docs || []);
+    } catch (err) {
+      console.warn('Document sync notice:', err.message);
+    } finally {
+      setLoadingDocs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      fetchDocuments();
+    }
+  }, [token, fetchDocuments]);
+
+  // Auth Handlers
   const handleAuthSuccess = useCallback((newToken, userInfo) => {
     setToken(newToken);
     setUser(userInfo);
-  }, []);
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('rag_token');
+    authService.logout();
     setToken(null);
     setUser(null);
     setDocuments([]);
     setChatHistory([]);
     navigate('/');
   }, [navigate]);
-
-  // Document Management (Decoupled Mock Handlers)
-  const fetchDocuments = useCallback(() => {
-    setLoadingDocs(true);
-    setTimeout(() => {
-      setDocuments(prev => (prev.length > 0 ? prev : INITIAL_MOCK_DOCUMENTS));
-      setLoadingDocs(false);
-    }, 300);
-  }, []);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -155,39 +195,39 @@ export default function App() {
     }
   };
 
-  const handleUpload = (e) => {
+  const handleUpload = async (e) => {
     e.preventDefault();
     if (!fileToUpload) return;
     setUploading(true);
     setUploadError(null);
     setUploadSuccess(false);
 
-    // Standalone prototype simulation: simulates chunking and indexing latency
-    setTimeout(() => {
-      const newDoc = {
-        id: `doc-${Date.now().toString().slice(-4)}`,
-        filename: fileToUpload.name,
-        size: fileToUpload.size,
-        processing_status: 'processed',
-        chunk_count: Math.max(4, Math.floor(fileToUpload.size / 15000)),
-        created_at: new Date().toISOString(),
-      };
-      setDocuments(prev => [newDoc, ...prev]);
+    try {
+      await documentService.uploadDocument(fileToUpload);
       setUploadSuccess(true);
-      setUploading(false);
       setFileToUpload(null);
       const fileInput = document.getElementById('doc-file-input');
       if (fileInput) fileInput.value = '';
-    }, 600);
+      await fetchDocuments();
+    } catch (err) {
+      setUploadError(err.response?.data?.detail || err.message || 'An error occurred during upload');
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const handleDeleteDoc = (id) => {
-    if (!confirm('Are you sure you want to delete this document from the index?')) return;
-    setDocuments(prev => prev.filter(d => d.id !== id));
-    if (selectedDocId === id) setSelectedDocId('');
+  const handleDeleteDoc = async (id) => {
+    if (!confirm('Are you sure you want to delete this document from the vector store?')) return;
+    try {
+      await documentService.deleteDocument(id);
+      await fetchDocuments();
+      if (selectedDocId === id) setSelectedDocId('');
+    } catch (err) {
+      alert(err.response?.data?.detail || 'An error occurred during deletion.');
+    }
   };
 
-  // Chat Simulation (Decoupled Mock Handlers with 4-metric evaluation)
+  // Chat Simulation (transitioning to service integration)
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
@@ -199,7 +239,6 @@ export default function App() {
     const newHistory = [...chatHistory, { sender: 'user', text: userMsgText }];
     setChatHistory(newHistory);
 
-    // Simulate RAG reasoning, vector search, and evaluation layer latency
     setTimeout(() => {
       const selectedDoc = documents.find(d => d.id === selectedDocId);
       const docContext = selectedDoc ? selectedDoc.filename : 'all indexed enterprise documents';
@@ -217,12 +256,6 @@ export default function App() {
               score: 0.942,
               text: 'The architecture employs Pinecone vector indexing combined with MongoDB metadata persistence to ensure fast, sub-50ms hybrid retrieval and deterministic citation tracking.',
             },
-            {
-              filename: 'enterprise_security_compliance.txt',
-              chunk_index: 1,
-              score: 0.887,
-              text: 'All ingested documents are partitioned into configurable chunk sizes (default 1000 characters with 200 character overlap) before generating dense embeddings.',
-            },
           ],
           evaluation: {
             faithfulness: 0.96,
@@ -235,7 +268,7 @@ export default function App() {
         },
       ]);
       setChatLoading(false);
-    }, 700);
+    }, 600);
   };
 
   const fetchAnalytics = () => {
