@@ -6,46 +6,9 @@ import ChatConsole from './components/ChatConsole';
 import AnalyticsView from './components/AnalyticsView';
 import authService from './services/authService';
 import documentService from './services/documentService';
+import chatService from './services/chatService';
+import adminService from './services/adminService';
 import { checkBackendHealth } from './services/apiClient';
-
-const INITIAL_MOCK_ANALYTICS = {
-  summary: {
-    total_requests: 128,
-    avg_latency_ms: 412.5,
-    avg_faithfulness: 0.942,
-    avg_answer_relevance: 0.918,
-    hallucination_rate: 0.045,
-  },
-  daily_stats: [
-    { date: '2026-03-02', count: 18, avg_latency_ms: 520, avg_faithfulness: 0.88, hallucination_rate: 0.08 },
-    { date: '2026-03-03', count: 24, avg_latency_ms: 480, avg_faithfulness: 0.91, hallucination_rate: 0.06 },
-    { date: '2026-03-04', count: 32, avg_latency_ms: 440, avg_faithfulness: 0.93, hallucination_rate: 0.05 },
-    { date: '2026-03-05', count: 28, avg_latency_ms: 410, avg_faithfulness: 0.95, hallucination_rate: 0.04 },
-    { date: '2026-03-06', count: 35, avg_latency_ms: 395, avg_faithfulness: 0.96, hallucination_rate: 0.03 },
-  ],
-  recent_evaluations: [
-    {
-      id: 'eval-1',
-      user_query: 'What vector indexing strategy does Veritas use for document chunks?',
-      faithfulness_score: 0.96,
-      answer_relevance_score: 0.94,
-      context_precision_score: 0.92,
-      context_recall_score: 0.95,
-      latency_ms: 388,
-      created_at: '2026-03-06T15:24:00Z',
-    },
-    {
-      id: 'eval-2',
-      user_query: 'Explain the MongoDB and Pinecone data flow pipeline.',
-      faithfulness_score: 0.92,
-      answer_relevance_score: 0.89,
-      context_precision_score: 0.90,
-      context_recall_score: 0.88,
-      latency_ms: 442,
-      created_at: '2026-03-06T14:10:00Z',
-    },
-  ],
-};
 
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('rag_token') || 'mock_dev_token');
@@ -91,7 +54,7 @@ export default function App() {
   const [expandedCitationIndex, setExpandedCitationIndex] = useState(null);
 
   // Analytics state
-  const [analyticsData, setAnalyticsData] = useState(INITIAL_MOCK_ANALYTICS);
+  const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState(null);
 
@@ -107,28 +70,27 @@ export default function App() {
   }, [chatHistory, chatLoading, location.pathname]);
 
   // Check backend health & sync user session
+  const syncStatus = useCallback(async () => {
+    const health = await checkBackendHealth();
+    if (health.online) {
+      setBackendStatus({
+        status: 'Online (FastAPI)',
+        environment: health.data?.environment || 'production',
+        backend: 'FastAPI',
+        version: health.data?.version || 'v0.2.0',
+      });
+    } else {
+      setBackendStatus({
+        status: 'Offline / Standalone',
+        environment: 'development',
+        backend: 'FastAPI',
+        version: 'v0.2.0-fallback',
+      });
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
-    const syncStatus = async () => {
-      const health = await checkBackendHealth();
-      if (!isMounted) return;
-      if (health.online) {
-        setBackendStatus({
-          status: 'Online (FastAPI)',
-          environment: health.data?.environment || 'production',
-          backend: 'FastAPI',
-          version: health.data?.version || 'v0.2.0',
-        });
-      } else {
-        setBackendStatus({
-          status: 'Offline / Standalone',
-          environment: 'development',
-          backend: 'FastAPI',
-          version: 'v0.2.0-fallback',
-        });
-      }
-    };
-
     const initAuth = async () => {
       const stored = localStorage.getItem('rag_token');
       if (stored && !stored.startsWith('mock_')) {
@@ -138,19 +100,19 @@ export default function App() {
             setUser(profile);
           }
         } catch {
-          // Token expired or server unreachable
+          // Token expired
         }
       }
     };
 
     syncStatus();
     initAuth();
-    const interval = setInterval(syncStatus, 15000);
+    const interval = setInterval(syncStatus, 20000);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [syncStatus]);
 
   // Fetch documents using documentService
   const fetchDocuments = useCallback(async () => {
@@ -165,11 +127,31 @@ export default function App() {
     }
   }, []);
 
+  // Fetch analytics using adminService
+  const fetchAnalytics = useCallback(async () => {
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    try {
+      const data = await adminService.getAnalytics();
+      setAnalyticsData(data);
+    } catch (err) {
+      setAnalyticsError(err.response?.data?.detail || err.message || 'Error loading analytics');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (token) {
       fetchDocuments();
     }
   }, [token, fetchDocuments]);
+
+  useEffect(() => {
+    if (token && location.pathname === '/analytics') {
+      fetchAnalytics();
+    }
+  }, [token, location.pathname, fetchAnalytics]);
 
   // Auth Handlers
   const handleAuthSuccess = useCallback((newToken, userInfo) => {
@@ -227,8 +209,8 @@ export default function App() {
     }
   };
 
-  // Chat Simulation (transitioning to service integration)
-  const handleSendMessage = (e) => {
+  // Live Chat Pipeline Integration with 4-Metric Evaluation Layer
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!chatInput.trim() || chatLoading) return;
 
@@ -239,44 +221,31 @@ export default function App() {
     const newHistory = [...chatHistory, { sender: 'user', text: userMsgText }];
     setChatHistory(newHistory);
 
-    setTimeout(() => {
-      const selectedDoc = documents.find(d => d.id === selectedDocId);
-      const docContext = selectedDoc ? selectedDoc.filename : 'all indexed enterprise documents';
-
+    try {
+      const response = await chatService.sendMessage(userMsgText, selectedDocId || null, 4);
       setChatHistory([
         ...newHistory,
         {
           sender: 'assistant',
-          text: `Based on ${docContext}, the Veritas RAG pipeline segments incoming documents into semantic chunks, stores vector embeddings in Pinecone, and retrieves relevant context with strict hallucination filtering.`,
-          responseTime: 0.38,
-          citations: [
-            {
-              filename: selectedDoc ? selectedDoc.filename : 'veritas_architecture_v1.pdf',
-              chunk_index: 2,
-              score: 0.942,
-              text: 'The architecture employs Pinecone vector indexing combined with MongoDB metadata persistence to ensure fast, sub-50ms hybrid retrieval and deterministic citation tracking.',
-            },
-          ],
-          evaluation: {
-            faithfulness: 0.96,
-            answer_relevance: 0.93,
-            context_precision: 0.91,
-            context_recall: 0.94,
-            latency_ms: 380,
-            framework: 'DeepEval RAG Layer',
-          },
+          text: response.answer,
+          responseTime: response.response_time,
+          citations: response.citations || [],
+          evaluation: response.evaluation,
         },
       ]);
+    } catch (err) {
+      setChatHistory([
+        ...newHistory,
+        {
+          sender: 'assistant',
+          text: `Error connecting to RAG pipeline: ${err.response?.data?.detail || err.message || 'Server did not respond'}. Check your backend server status.`,
+          responseTime: 0,
+          citations: [],
+        },
+      ]);
+    } finally {
       setChatLoading(false);
-    }, 600);
-  };
-
-  const fetchAnalytics = () => {
-    setAnalyticsLoading(true);
-    setTimeout(() => {
-      setAnalyticsData(INITIAL_MOCK_ANALYTICS);
-      setAnalyticsLoading(false);
-    }, 300);
+    }
   };
 
   if (!token || !user) {
