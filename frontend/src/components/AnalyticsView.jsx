@@ -22,6 +22,7 @@ export default function AnalyticsView({
   analyticsLoading = false,
   analyticsError = null,
   fetchAnalytics,
+  onOpenMobileMenu,
 }) {
   const summary = analyticsData?.summary || {
     total_requests: 0,
@@ -38,8 +39,19 @@ export default function AnalyticsView({
       {/* Header */}
       <header className="h-16 px-6 border-b border-slate-900/60 bg-slate-950/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
+          {onOpenMobileMenu && (
+            <button
+              onClick={onOpenMobileMenu}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800"
+              title="Open Navigation"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
           <h1 className="font-bold text-base tracking-tight text-white font-display">System Analytics</h1>
-          <span className="px-2 py-0.5 bg-cyan-600/10 text-cyan-400 border border-cyan-500/10 rounded-full text-[10px] font-semibold">
+          <span className="px-2 py-0.5 bg-cyan-600/10 text-cyan-400 border border-cyan-500/10 rounded-full text-[10px] font-semibold hidden sm:inline-block">
             Evaluation Layer
           </span>
         </div>
@@ -61,7 +73,7 @@ export default function AnalyticsView({
       </header>
 
       {/* Analytics Content */}
-      <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8 bg-[#0b0c10]">
+      <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-8 space-y-8 bg-[#0b0c10]">
         {analyticsError && (
           <div className="max-w-5xl mx-auto p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
             {analyticsError}
@@ -70,29 +82,29 @@ export default function AnalyticsView({
 
         <div className="max-w-5xl mx-auto space-y-8">
           {/* Summary Metric Cards */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-slate-950/60 border border-slate-900 p-5 rounded-2xl space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Requests</p>
-              <p className="text-3xl font-bold text-white">{summary.total_requests}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-white">{summary.total_requests}</p>
               <p className="text-[10px] text-slate-600">Evaluations recorded</p>
             </div>
             <div className="bg-slate-950/60 border border-slate-900 p-5 rounded-2xl space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Avg Latency</p>
-              <p className="text-3xl font-bold text-cyan-400">
+              <p className="text-2xl sm:text-3xl font-bold text-cyan-400">
                 {Number(summary.avg_latency_ms || 0).toFixed(0)} ms
               </p>
               <p className="text-[10px] text-slate-600">Round-trip execution</p>
             </div>
             <div className="bg-slate-950/60 border border-slate-900 p-5 rounded-2xl space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Avg Faithfulness</p>
-              <p className="text-3xl font-bold text-emerald-400">
+              <p className="text-2xl sm:text-3xl font-bold text-emerald-400">
                 {(Number(summary.avg_faithfulness || 0) * 100).toFixed(0)}%
               </p>
               <p className="text-[10px] text-slate-600">Zero-hallucination score</p>
             </div>
             <div className="bg-slate-950/60 border border-slate-900 p-5 rounded-2xl space-y-1">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Hallucination Rate</p>
-              <p className="text-3xl font-bold text-rose-400">
+              <p className="text-2xl sm:text-3xl font-bold text-rose-400">
                 {(Number(summary.hallucination_rate || 0) * 100).toFixed(1)}%
               </p>
               <p className="text-[10px] text-slate-600">Faithfulness &lt; 0.80</p>
@@ -100,7 +112,7 @@ export default function AnalyticsView({
           </div>
 
           {/* Sparkline Charts */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-slate-950/40 border border-slate-900 p-6 rounded-2xl space-y-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-300">Retrieval & Generation Latency</h3>
@@ -109,7 +121,7 @@ export default function AnalyticsView({
               <div className="h-44 w-full flex items-center justify-center bg-slate-950/60 border border-slate-900/60 rounded-xl relative overflow-hidden">
                 {(() => {
                   const chart = drawSparkline(dailyStats, 'avg_latency_ms', 400, 160) || drawSparkline(dailyStats, 'avg_latency', 400, 160);
-                  if (!chart) return <p className="text-xs text-slate-600 italic">Insufficient data points</p>;
+                  if (!chart) return <p className="text-xs text-slate-600 italic">No historical trend data yet</p>;
                   return (
                     <svg className="w-full h-full" viewBox="0 0 400 160">
                       <line x1="15" y1="80" x2="385" y2="80" stroke="rgba(255,255,255,0.03)" strokeDasharray="3,3" />
@@ -131,7 +143,7 @@ export default function AnalyticsView({
               <div className="h-44 w-full flex items-center justify-center bg-slate-950/60 border border-slate-900/60 rounded-xl relative overflow-hidden">
                 {(() => {
                   const chart = drawSparkline(dailyStats, 'avg_faithfulness', 400, 160);
-                  if (!chart) return <p className="text-xs text-slate-600 italic">Insufficient data points</p>;
+                  if (!chart) return <p className="text-xs text-slate-600 italic">No historical trend data yet</p>;
                   return (
                     <svg className="w-full h-full" viewBox="0 0 400 160">
                       <line x1="15" y1="80" x2="385" y2="80" stroke="rgba(255,255,255,0.03)" strokeDasharray="3,3" />
@@ -167,8 +179,8 @@ export default function AnalyticsView({
                 <tbody className="divide-y divide-slate-900/60">
                   {recentEvals.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-4 text-center text-slate-600 italic">
-                        No evaluation records recorded yet.
+                      <td colSpan={6} className="p-6 text-center text-slate-600 italic">
+                        No evaluation records stored yet. Run queries in the RAG Chat Console to generate evaluations.
                       </td>
                     </tr>
                   ) : (

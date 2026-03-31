@@ -1,4 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const SUGGESTED_PROMPTS = [
+  'What vector indexing strategy does Veritas use for document chunks?',
+  'Explain the MongoDB and Pinecone data flow pipeline.',
+  'How does the 4-metric evaluation layer detect hallucinations?',
+  'What chunk size and overlap parameters are recommended for technical PDFs?',
+];
 
 export default function ChatConsole({
   chatHistory = [],
@@ -13,28 +20,56 @@ export default function ChatConsole({
   setExpandedCitationIndex,
   messagesEndRef,
   user,
+  onOpenMobileMenu,
 }) {
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  const handleCopyCitation = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey(null);
+    }, 1800);
+  };
+
+  const handleQuickPrompt = (promptText) => {
+    if (setChatInput) {
+      setChatInput(promptText);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full">
       {/* Console Header */}
       <header className="h-16 px-6 border-b border-slate-900/60 bg-slate-950/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
+          {onOpenMobileMenu && (
+            <button
+              onClick={onOpenMobileMenu}
+              className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 border border-slate-800"
+              title="Open Navigation"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          )}
           <h1 className="font-bold text-base tracking-tight text-white">RAG Grounded Console</h1>
-          <span className="px-2 py-0.5 bg-violet-600/10 text-violet-400 border border-violet-500/10 rounded-full text-[10px] font-semibold">
+          <span className="px-2 py-0.5 bg-violet-600/10 text-violet-400 border border-violet-500/10 rounded-full text-[10px] font-semibold hidden sm:inline-block">
             Live Evaluation Layer
           </span>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="text-slate-500 font-medium">Grounding context:</span>
+          <span className="text-slate-500 font-medium hidden sm:inline">Grounding context:</span>
           <select
             value={selectedDocId}
             onChange={(e) => setSelectedDocId(e.target.value)}
-            className="bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg outline-none cursor-pointer focus:ring-1 focus:ring-violet-500/50 transition"
+            className="bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg outline-none cursor-pointer focus:ring-1 focus:ring-violet-500/50 transition max-w-[200px] sm:max-w-xs truncate"
           >
-            <option value="">🔍 Search All Ingested Knowledge</option>
+            <option value="">🔍 All Ingested Knowledge</option>
             {documents.map((doc) => (
               <option key={doc.id} value={doc.id}>
-                📄 {doc.filename.slice(0, 30)}{doc.filename.length > 30 ? '...' : ''}
+                📄 {doc.filename.slice(0, 26)}{doc.filename.length > 26 ? '...' : ''}
               </option>
             ))}
           </select>
@@ -71,7 +106,7 @@ export default function ChatConsole({
                     <div className="mt-4 pt-3.5 border-t border-slate-900/80 space-y-4 text-[11px] text-slate-500">
                       <div className="flex items-center justify-between text-slate-500 font-semibold px-0.5">
                         {msg.responseTime !== undefined && (
-                          <span>⏱ Generation: <strong>{msg.responseTime}s</strong></span>
+                          <span>⏱ Generation: <strong>{Number(msg.responseTime).toFixed(2)}s</strong></span>
                         )}
                         {msg.citations && msg.citations.length > 0 && (
                           <span>📚 Grounding: <strong>{msg.citations.length} sources</strong></span>
@@ -86,35 +121,35 @@ export default function ChatConsole({
                               📊 Evaluation Framework ({msg.evaluation.framework || 'DeepEval / Ragas'})
                             </span>
                             <span className="font-semibold text-[10px] text-slate-500">
-                              Eval Latency: {msg.evaluation.latency_ms} ms
+                              Eval Latency: {Number(msg.evaluation.latency_ms || 0).toFixed(0)} ms
                             </span>
                           </div>
                           <div className="grid grid-cols-2 gap-x-5 gap-y-3">
                             <div className="space-y-1">
                               <div className="flex justify-between font-medium">
                                 <span>Faithfulness</span>
-                                <span className={`font-bold ${msg.evaluation.faithfulness >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                  {(msg.evaluation.faithfulness * 100).toFixed(0)}%
+                                <span className={`font-bold ${Number(msg.evaluation.faithfulness || 0) >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                  {(Number(msg.evaluation.faithfulness || 0) * 100).toFixed(0)}%
                                 </span>
                               </div>
                               <div className="h-1 bg-slate-950 rounded-full overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                  style={{ width: `${Math.min(100, Math.max(0, msg.evaluation.faithfulness * 100))}%` }}
+                                  style={{ width: `${Math.min(100, Math.max(0, Number(msg.evaluation.faithfulness || 0) * 100))}%` }}
                                 />
                               </div>
                             </div>
                             <div className="space-y-1">
                               <div className="flex justify-between font-medium">
                                 <span>Answer Relevance</span>
-                                <span className={`font-bold ${msg.evaluation.answer_relevance >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                  {(msg.evaluation.answer_relevance * 100).toFixed(0)}%
+                                <span className={`font-bold ${Number(msg.evaluation.answer_relevance || 0) >= 0.8 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                  {(Number(msg.evaluation.answer_relevance || 0) * 100).toFixed(0)}%
                                 </span>
                               </div>
                               <div className="h-1 bg-slate-950 rounded-full overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                  style={{ width: `${Math.min(100, Math.max(0, msg.evaluation.answer_relevance * 100))}%` }}
+                                  style={{ width: `${Math.min(100, Math.max(0, Number(msg.evaluation.answer_relevance || 0) * 100))}%` }}
                                 />
                               </div>
                             </div>
@@ -122,13 +157,13 @@ export default function ChatConsole({
                               <div className="flex justify-between font-medium">
                                 <span>Context Precision</span>
                                 <span className="font-bold text-cyan-400">
-                                  {(msg.evaluation.context_precision * 100).toFixed(0)}%
+                                  {(Number(msg.evaluation.context_precision || 0) * 100).toFixed(0)}%
                                 </span>
                               </div>
                               <div className="h-1 bg-slate-950 rounded-full overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-cyan-500 transition-all duration-500"
-                                  style={{ width: `${Math.min(100, Math.max(0, msg.evaluation.context_precision * 100))}%` }}
+                                  style={{ width: `${Math.min(100, Math.max(0, Number(msg.evaluation.context_precision || 0) * 100))}%` }}
                                 />
                               </div>
                             </div>
@@ -136,13 +171,13 @@ export default function ChatConsole({
                               <div className="flex justify-between font-medium">
                                 <span>Context Recall</span>
                                 <span className="font-bold text-cyan-400">
-                                  {(msg.evaluation.context_recall * 100).toFixed(0)}%
+                                  {(Number(msg.evaluation.context_recall || 0) * 100).toFixed(0)}%
                                 </span>
                               </div>
                               <div className="h-1 bg-slate-950 rounded-full overflow-hidden">
                                 <div
                                   className="h-full rounded-full bg-cyan-500 transition-all duration-500"
-                                  style={{ width: `${Math.min(100, Math.max(0, msg.evaluation.context_recall * 100))}%` }}
+                                  style={{ width: `${Math.min(100, Math.max(0, Number(msg.evaluation.context_recall || 0) * 100))}%` }}
                                 />
                               </div>
                             </div>
@@ -174,8 +209,19 @@ export default function ChatConsole({
                                   </span>
                                 </button>
                                 {isExpanded && (
-                                  <div className="p-3 bg-slate-950/80 border-t border-slate-900 text-slate-300 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap select-text">
-                                    {cite.text}
+                                  <div className="p-3 bg-slate-950/80 border-t border-slate-900 space-y-2">
+                                    <div className="text-slate-300 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap select-text">
+                                      {cite.text}
+                                    </div>
+                                    <div className="flex justify-end pt-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCopyCitation(cite.text, key)}
+                                        className="text-[10px] text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 border border-slate-800 transition"
+                                      >
+                                        {copiedKey === key ? '✓ Copied' : '📋 Copy Context'}
+                                      </button>
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -204,6 +250,27 @@ export default function ChatConsole({
               </div>
             </div>
           )}
+
+          {/* Quick Suggested Prompts (shown when only initial greeting exists) */}
+          {chatHistory.length <= 1 && (
+            <div className="pt-4 space-y-2">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                Suggested exploration queries:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {SUGGESTED_PROMPTS.map((prompt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleQuickPrompt(prompt)}
+                    className="text-left p-2.5 rounded-xl bg-slate-950/40 hover:bg-slate-900/60 border border-slate-900 hover:border-violet-500/30 text-xs text-slate-400 hover:text-slate-200 transition"
+                  >
+                    💡 {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       </div>

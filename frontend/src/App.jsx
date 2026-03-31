@@ -26,6 +26,7 @@ export default function App() {
     version: 'v0.2.0',
   });
 
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -248,10 +249,6 @@ export default function App() {
     }
   };
 
-  if (!token || !user) {
-    return <AuthPage onAuthSuccess={handleAuthSuccess} />;
-  }
-
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0b0c10] text-slate-100 font-sans">
       <Sidebar
@@ -270,6 +267,8 @@ export default function App() {
         user={user}
         backendStatus={backendStatus}
         handleLogout={handleLogout}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
       />
 
       <Routes>
@@ -289,6 +288,7 @@ export default function App() {
               setExpandedCitationIndex={setExpandedCitationIndex}
               messagesEndRef={messagesEndRef}
               user={user}
+              onOpenMobileMenu={() => setMobileOpen(true)}
             />
           }
         />
@@ -300,6 +300,7 @@ export default function App() {
               analyticsLoading={analyticsLoading}
               analyticsError={analyticsError}
               fetchAnalytics={fetchAnalytics}
+              onOpenMobileMenu={() => setMobileOpen(true)}
             />
           }
         />
