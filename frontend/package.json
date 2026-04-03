@@ -1,12 +1,13 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
+    "test:smoke": "node scripts/verify-build.js",
     "preview": "vite preview"
   },
   "dependencies": {
