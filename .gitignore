@@ -47,3 +47,7 @@ dist/
 #postman
 postman
 .postman/
+
+# Local storage and uploads
+local_db/
+uploads/
