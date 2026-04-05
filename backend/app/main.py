@@ -41,6 +41,8 @@ async def health():
     status = "healthy"
     if db.client is None:
         status = "degraded (database offline)"
+    elif db.client == "mock_client":
+        status = "healthy (local database)"
     return {
         "status": status,
         "environment": settings.ENVIRONMENT,
