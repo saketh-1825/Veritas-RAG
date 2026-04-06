@@ -14,7 +14,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('rag_token');
-    if (token && !token.startsWith('mock_')) {
+    if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -27,10 +27,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      const token = localStorage.getItem('rag_token');
-      if (token && !token.startsWith('mock_')) {
-        localStorage.removeItem('rag_token');
-      }
+      localStorage.removeItem('rag_token');
     }
     return Promise.reject(error);
   }

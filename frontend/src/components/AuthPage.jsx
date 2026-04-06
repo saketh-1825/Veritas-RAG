@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import authService from '../services/authService';
+import axios from 'axios';
 
 export default function AuthPage({ onAuthSuccess }) {
   const [tab, setTab] = useState('login');
@@ -49,33 +49,21 @@ export default function AuthPage({ onAuthSuccess }) {
     setErrors({});
 
     try {
-      let result;
-      if (tab === 'login') {
-        result = await authService.login(email, password);
-      } else {
-        result = await authService.register(email, username, password);
-      }
-      const token = result.access_token;
-      const user = result.user;
-      localStorage.setItem('rag_token', token);
+      const endpoint = tab === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const body = tab === 'login'
+        ? { email, password }
+        : { email, username, password };
+      const res = await axios.post(endpoint, body);
+      const data = res.data;
+      localStorage.setItem('rag_token', data.access_token);
       if (onAuthSuccess) {
-        onAuthSuccess(token, user);
+        onAuthSuccess(data.access_token, data.user);
       }
     } catch (err) {
       if (err.response && err.response.data && err.response.data.detail) {
         setErrors({ general: err.response.data.detail });
       } else {
-        // Fallback for offline prototype testing when server is offline
-        const mockUser = {
-          username: tab === 'register' ? username : (email.split('@')[0] || 'demo_user'),
-          email: email,
-          role: email.toLowerCase().includes('admin') ? 'admin' : 'user',
-        };
-        const mockToken = `mock_token_${Date.now()}`;
-        localStorage.setItem('rag_token', mockToken);
-        if (onAuthSuccess) {
-          onAuthSuccess(mockToken, mockUser);
-        }
+        setErrors({ general: 'Could not reach the server. Is the backend running?' });
       }
     } finally {
       setLoading(false);
@@ -93,9 +81,9 @@ export default function AuthPage({ onAuthSuccess }) {
           </div>
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
-              Veritas RAG
+              Enterprise RAG
             </h1>
-            <p className="text-xs text-slate-500 font-medium">Enterprise Intelligence Console</p>
+            <p className="text-xs text-slate-500 font-medium">AI Document Intelligence</p>
           </div>
         </div>
         <div className="relative flex bg-slate-950 p-1 rounded-xl border border-slate-800/50 mb-6">

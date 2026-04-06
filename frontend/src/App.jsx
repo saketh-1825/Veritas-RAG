@@ -1,33 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import AuthPage from './components/AuthPage';
 import Sidebar from './components/Sidebar';
 import ChatConsole from './components/ChatConsole';
 import AnalyticsView from './components/AnalyticsView';
-import authService from './services/authService';
-import documentService from './services/documentService';
-import chatService from './services/chatService';
-import adminService from './services/adminService';
-import { checkBackendHealth } from './services/apiClient';
 
 export default function App() {
-  const [token, setToken] = useState(() => localStorage.getItem('rag_token') || 'mock_dev_token');
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('rag_token');
-    return stored
-      ? { username: 'veritas_analyst', email: 'analyst@veritas.ai', role: 'admin' }
-      : { username: 'veritas_analyst', email: 'analyst@veritas.ai', role: 'admin' };
-  });
-
-  const [backendStatus, setBackendStatus] = useState({
-    status: 'Standby / Local Mock',
-    environment: 'development',
-    backend: 'FastAPI',
-    version: 'v0.2.0',
-  });
-
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [token, setToken] = useState(() => localStorage.getItem('rag_token'));
+  const [user, setUser] = useState(null);
+  const [backendStatus, setBackendStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,7 +28,7 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState([
     {
       sender: 'assistant',
-      text: 'Welcome to the Veritas RAG Grounded Console. Ask any question about your indexed organizational documents or choose a specific document to narrow your context.',
+      text: 'Welcome to the Enterprise RAG Grounded Console. Ask any question about your indexed organizational documents or choose a specific document to narrow your context.',
       responseTime: 0.24,
       citations: [],
     },
@@ -53,6 +36,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [expandedCitationIndex, setExpandedCitationIndex] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Analytics state
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -70,82 +54,110 @@ export default function App() {
     }
   }, [chatHistory, chatLoading, location.pathname]);
 
-  // Check backend health & sync user session
-  const syncStatus = useCallback(async () => {
-    const health = await checkBackendHealth();
-    if (health.online) {
-      setBackendStatus({
-        status: 'Online (FastAPI)',
-        environment: health.data?.environment || 'production',
-        backend: 'FastAPI',
-        version: health.data?.version || 'v0.2.0',
-      });
-    } else {
-      setBackendStatus({
-        status: 'Offline / Standalone',
-        environment: 'development',
-        backend: 'FastAPI',
-        version: 'v0.2.0-fallback',
-      });
-    }
-  }, []);
-
+  // Startup Authentication Verification
   useEffect(() => {
     let isMounted = true;
-    const initAuth = async () => {
+    const initializeApp = async () => {
+      if (!isMounted) return;
       const stored = localStorage.getItem('rag_token');
-      if (stored && !stored.startsWith('mock_')) {
-        try {
-          const profile = await authService.getMe();
-          if (isMounted && profile) {
-            setUser(profile);
+      if (!stored) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const r = await axios.get('/api/auth/me', {
+          headers: { Authorization: `Bearer ${stored}` },
+        });
+        if (isMounted) {
+          setToken(stored);
+          setUser(r.data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          if (err.response && err.response.status === 401) {
+            localStorage.removeItem('rag_token');
+            setToken(null);
+            setUser(null);
+          } else {
+            localStorage.removeItem('rag_token');
+            setToken(null);
+            setUser(null);
           }
-        } catch {
-          // Token expired
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
         }
       }
     };
 
-    syncStatus();
-    initAuth();
-    const interval = setInterval(syncStatus, 20000);
+    initializeApp();
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
-  }, [syncStatus]);
+  }, []);
 
-  // Fetch documents using documentService
+  // Document management: Fetch documents using direct axios
   const fetchDocuments = useCallback(async () => {
+    if (!token) return;
     setLoadingDocs(true);
     try {
-      const docs = await documentService.listDocuments();
-      setDocuments(docs || []);
+      const res = await axios.get('/api/documents', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setDocuments(res.data || []);
     } catch (err) {
-      console.warn('Document sync notice:', err.message);
+      console.error('Failed to fetch documents:', err);
     } finally {
       setLoadingDocs(false);
     }
-  }, []);
+  }, [token]);
 
-  // Fetch analytics using adminService
+  // Analytics: Fetch analytics using direct axios
   const fetchAnalytics = useCallback(async () => {
+    if (!token) return;
     setAnalyticsLoading(true);
     setAnalyticsError(null);
     try {
-      const data = await adminService.getAnalytics();
-      setAnalyticsData(data);
+      const res = await axios.get('/api/admin/analytics', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAnalyticsData(res.data);
     } catch (err) {
       setAnalyticsError(err.response?.data?.detail || err.message || 'Error loading analytics');
     } finally {
       setAnalyticsLoading(false);
     }
-  }, []);
+  }, [token]);
 
+  // Health and status polling check when authenticated
   useEffect(() => {
-    if (token) {
-      fetchDocuments();
-    }
+    if (!token) return;
+    const fetchStatus = async () => {
+      try {
+        setError(null);
+        const response = await axios.get('/api/health');
+        setBackendStatus({
+          status: response.data.status === 'healthy' ? 'Online (FastAPI)' : response.data.status,
+          environment: response.data.environment || 'development',
+          backend: response.data.backend || 'FastAPI',
+          version: response.data.version || '0.2.0',
+        });
+      } catch (err) {
+        setError(err.message || 'Unknown error');
+        setBackendStatus({
+          status: 'Offline / Disconnected',
+          environment: 'development',
+          backend: 'FastAPI',
+          version: '0.2.0',
+        });
+      }
+    };
+
+    fetchStatus();
+    fetchDocuments();
+    const interval = setInterval(fetchStatus, 15000);
+    return () => clearInterval(interval);
   }, [token, fetchDocuments]);
 
   useEffect(() => {
@@ -156,15 +168,16 @@ export default function App() {
 
   // Auth Handlers
   const handleAuthSuccess = useCallback((newToken, userInfo) => {
+    localStorage.setItem('rag_token', newToken);
     setToken(newToken);
     setUser(userInfo);
-    fetchDocuments();
-  }, [fetchDocuments]);
+  }, []);
 
   const handleLogout = useCallback(() => {
-    authService.logout();
+    localStorage.removeItem('rag_token');
     setToken(null);
     setUser(null);
+    setBackendStatus(null);
     setDocuments([]);
     setChatHistory([]);
     navigate('/');
@@ -180,13 +193,23 @@ export default function App() {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!fileToUpload) return;
+    if (!fileToUpload || !token) return;
     setUploading(true);
     setUploadError(null);
     setUploadSuccess(false);
 
+    const formData = new FormData();
+    formData.append('file', fileToUpload);
+    formData.append('chunk_size', '1000');
+    formData.append('chunk_overlap', '200');
+
     try {
-      await documentService.uploadDocument(fileToUpload);
+      await axios.post('/api/documents/upload', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       setUploadSuccess(true);
       setFileToUpload(null);
       const fileInput = document.getElementById('doc-file-input');
@@ -200,9 +223,12 @@ export default function App() {
   };
 
   const handleDeleteDoc = async (id) => {
-    if (!confirm('Are you sure you want to delete this document from the vector store?')) return;
+    if (!token) return;
+    if (!confirm('Are you sure you want to delete this document? All associated vector chunks will be permanently removed.')) return;
     try {
-      await documentService.deleteDocument(id);
+      await axios.delete(`/api/documents/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       await fetchDocuments();
       if (selectedDocId === id) setSelectedDocId('');
     } catch (err) {
@@ -213,7 +239,7 @@ export default function App() {
   // Live Chat Pipeline Integration with 4-Metric Evaluation Layer
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!chatInput.trim() || chatLoading) return;
+    if (!chatInput.trim() || chatLoading || !token) return;
 
     const userMsgText = chatInput.trim();
     setChatInput('');
@@ -223,15 +249,26 @@ export default function App() {
     setChatHistory(newHistory);
 
     try {
-      const response = await chatService.sendMessage(userMsgText, selectedDocId || null, 4);
+      const res = await axios.post(
+        '/api/chat',
+        {
+          message: userMsgText,
+          document_id: selectedDocId || null,
+          top_k: 4,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      const data = res.data;
       setChatHistory([
         ...newHistory,
         {
           sender: 'assistant',
-          text: response.answer,
-          responseTime: response.response_time,
-          citations: response.citations || [],
-          evaluation: response.evaluation,
+          text: data.answer,
+          responseTime: data.response_time,
+          citations: data.citations || [],
+          evaluation: data.evaluation,
         },
       ]);
     } catch (err) {
@@ -239,7 +276,7 @@ export default function App() {
         ...newHistory,
         {
           sender: 'assistant',
-          text: `Error connecting to RAG pipeline: ${err.response?.data?.detail || err.message || 'Server did not respond'}. Check your backend server status.`,
+          text: `❌ Failed to reach RAG Assistant: ${err.response?.data?.detail || err.message || 'Please check if backend is online.'}`,
           responseTime: 0,
           citations: [],
         },
@@ -248,6 +285,25 @@ export default function App() {
       setChatLoading(false);
     }
   };
+
+  // View Guards
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0b0c10] flex items-center justify-center text-slate-400 font-medium">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="animate-spin h-8 w-8 text-violet-500" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span className="text-sm tracking-wider uppercase">Loading RAG Interface...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!token || !user) {
+    return <AuthPage onAuthSuccess={handleAuthSuccess} />;
+  }
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#0b0c10] text-slate-100 font-sans">

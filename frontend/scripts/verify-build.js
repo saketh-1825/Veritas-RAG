@@ -19,8 +19,8 @@ if (!fs.existsSync(htmlPath)) {
 }
 
 const htmlContent = fs.readFileSync(htmlPath, 'utf8');
-if (!htmlContent.includes('<title>Veritas RAG') && !htmlContent.includes('Veritas')) {
-  console.warn('NOTICE: index.html title might not be branded Veritas.');
+if (!htmlContent.includes('Enterprise RAG') && !htmlContent.includes('Veritas RAG')) {
+  console.warn('NOTICE: index.html title might not be branded Enterprise RAG.');
 }
 
 const assetsDir = path.join(distDir, 'assets');

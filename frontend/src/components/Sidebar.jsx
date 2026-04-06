@@ -50,7 +50,7 @@ export default function Sidebar({
             </div>
             <div>
               <h2 className="font-bold text-base tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                Veritas RAG
+                Enterprise RAG
               </h2>
               <p className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">Console v0.5</p>
             </div>
@@ -67,7 +67,7 @@ export default function Sidebar({
         </div>
 
         {/* Navigation */}
-        <Navbar />
+        <Navbar user={user} />
 
         {/* Document Ingestion & Knowledge Base */}
         <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
