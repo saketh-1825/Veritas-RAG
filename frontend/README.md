@@ -17,9 +17,8 @@ Built with **React 19**, **Vite 8**, and **Tailwind CSS 4**.
   - *Context Precision* (signal-to-noise ratio in retrieved chunks)
   - *Context Recall* (retrieval coverage)
 - **Analytics Dashboard**: System summary cards, daily latency and faithfulness sparklines, and recent evaluation query logs.
-- **Dual Runtime Modes**:
-  - **Live Full-Stack Mode**: Proxies to FastAPI backend (`/api/auth`, `/api/documents`, `/api/chat`, `/api/admin`).
-  - **Standalone Prototype Mode**: Built-in resilient fallbacks allowing developers to explore, test, and present the interface even when the database or backend services are offline.
+- **Live Full-Stack Integration**: Directly communicates with FastAPI endpoints (`/api/auth`, `/api/documents`, `/api/chat`, `/api/admin`, `/api/health`) via Axios with JWT bearer tokens.
+- **Strict Authentication Route Guards**: Enforces active session verification against `/api/auth/me` before granting console access, with automatic session expiry cleanup.
 - **Mobile Responsive**: Off-canvas sliding navigation drawer and responsive layout across desktop, tablet, and mobile viewports.
 
 ---
