@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-export default function Navbar({ user, onMobileMenuToggle }) {
+export default function Navbar({ user, onMobileMenuToggle: _onMobileMenuToggle }) {
   const location = useLocation();
 
   return (

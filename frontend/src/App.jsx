@@ -11,7 +11,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [backendStatus, setBackendStatus] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [_error, setError] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
