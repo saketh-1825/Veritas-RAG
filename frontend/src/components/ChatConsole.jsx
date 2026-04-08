@@ -23,9 +23,16 @@ export default function ChatConsole({
   onOpenMobileMenu,
 }) {
   const [copiedKey, setCopiedKey] = useState(null);
+  const [copyError, setCopyError] = useState(null);
 
-  const handleCopyCitation = (text, key) => {
-    navigator.clipboard.writeText(text);
+  const handleCopyCitation = async (text, key) => {
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      setCopyError(key);
+      return;
+    }
     setCopiedKey(key);
     setTimeout(() => {
       setCopiedKey(null);
@@ -41,7 +48,7 @@ export default function ChatConsole({
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full">
       {/* Console Header */}
-      <header className="h-16 px-6 border-b border-slate-900/60 bg-slate-950/30 flex items-center justify-between shrink-0">
+      <header className="min-h-16 px-4 py-3 sm:px-6 flex-wrap gap-3 border-b border-slate-900/60 bg-slate-950/30 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           {onOpenMobileMenu && (
             <button
@@ -62,6 +69,7 @@ export default function ChatConsole({
         <div className="flex items-center gap-2 text-xs">
           <span className="text-slate-500 font-medium hidden sm:inline">Grounding context:</span>
           <select
+            aria-label="Grounding context"
             value={selectedDocId}
             onChange={(e) => setSelectedDocId(e.target.value)}
             className="bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 text-slate-200 text-xs px-3 py-1.5 rounded-lg outline-none cursor-pointer focus:ring-1 focus:ring-violet-500/50 transition max-w-[200px] sm:max-w-xs truncate"
@@ -93,7 +101,7 @@ export default function ChatConsole({
               >
                 {msg.sender === 'user' ? (user?.username?.slice(0, 2) || 'ME') : 'AI'}
               </div>
-              <div className="flex flex-col max-w-2xl space-y-2">
+              <div className="flex flex-col min-w-0 max-w-2xl space-y-2">
                 <div
                   className={`text-sm rounded-2xl p-4 shadow-sm leading-relaxed border ${
                     msg.sender === 'user'
@@ -101,7 +109,7 @@ export default function ChatConsole({
                       : 'bg-slate-950/30 border-slate-900/80 text-slate-200 rounded-tl-none'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap font-medium">{msg.text}</div>
+                  <div className="whitespace-pre-wrap break-words font-medium">{msg.text}</div>
                   {msg.sender === 'assistant' && (
                     <div className="mt-4 pt-3.5 border-t border-slate-900/80 space-y-4 text-[11px] text-slate-500">
                       <div className="flex items-center justify-between text-slate-500 font-semibold px-0.5">
@@ -213,6 +221,7 @@ export default function ChatConsole({
                                     <div className="text-slate-300 font-mono text-[11px] leading-relaxed max-h-40 overflow-y-auto whitespace-pre-wrap select-text">
                                       {cite.text}
                                     </div>
+                                    {copyError === key && <p role="alert">Copy failed. Select the context text to copy it manually.</p>}
                                     <div className="flex justify-end pt-1">
                                       <button
                                         type="button"
@@ -280,6 +289,7 @@ export default function ChatConsole({
         <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSendMessage} className="relative flex items-center">
             <input
+              aria-label="Your question"
               type="text"
               className="w-full bg-slate-950/60 border border-slate-800 focus:border-violet-500 text-slate-100 placeholder-slate-600 rounded-2xl pl-4 pr-16 py-3.5 text-sm focus:outline-none focus:ring-4 focus:ring-violet-500/10 transition leading-normal"
               placeholder={chatLoading ? 'Reasoning in progress...' : 'Ask Veritas RAG... (e.g., Explain vector indexing strategy)'}

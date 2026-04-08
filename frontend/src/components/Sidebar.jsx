@@ -4,6 +4,7 @@ import Navbar from './Navbar';
 export default function Sidebar({
   documents = [],
   loadingDocs = false,
+  documentsError = null,
   selectedDocId = '',
   setSelectedDocId,
   fileToUpload = null,
@@ -82,7 +83,8 @@ export default function Sidebar({
                   id="doc-file-input"
                   accept=".pdf,.txt,.docx,.md"
                   onChange={handleFileChange}
-                  className="hidden"
+                  disabled={uploading}
+                  className="sr-only"
                 />
                 <label htmlFor="doc-file-input" className="cursor-pointer block space-y-2">
                   <span className="text-2xl block">📄</span>
@@ -148,6 +150,7 @@ export default function Sidebar({
               </button>
             </div>
             <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+              {documentsError && <p role="alert" className="text-xs text-rose-400">{documentsError}</p>}
               {loadingDocs ? (
                 <p className="text-xs text-slate-600 italic pl-1">Syncing index...</p>
               ) : documents.length === 0 ? (
@@ -165,8 +168,10 @@ export default function Sidebar({
                         : 'bg-slate-900/30 hover:bg-slate-900/60 border-slate-900/80 hover:border-slate-800/80'
                     }`}
                   >
-                    <div
-                      className="min-w-0 flex-1 pr-2 space-y-1 cursor-pointer"
+                    <button
+                      type="button"
+                      aria-pressed={selectedDocId === doc.id}
+                      className="min-w-0 flex-1 pr-2 space-y-1 cursor-pointer text-left"
                       onClick={() => setSelectedDocId && setSelectedDocId(selectedDocId === doc.id ? '' : doc.id)}
                     >
                       <p className="text-xs font-semibold text-slate-200 truncate" title={doc.filename}>
@@ -179,13 +184,13 @@ export default function Sidebar({
                           {doc.processing_status} ({doc.chunk_count || 0})
                         </span>
                       </div>
-                    </div>
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteDoc(doc.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 hover:bg-rose-500/10 text-rose-500 p-1.5 rounded-lg border border-transparent hover:border-rose-500/20 transition cursor-pointer shrink-0"
+                      className="opacity-100 lg:opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-rose-500/10 text-rose-500 p-1.5 rounded-lg border border-transparent hover:border-rose-500/20 transition cursor-pointer shrink-0"
                       title="Delete document"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "oxlint",
     "test:smoke": "node scripts/verify-build.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:api": "node scripts/verify-api.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.2",

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import apiClient, { getApiError } from '../services/apiClient';
 
 export default function AuthPage({ onAuthSuccess }) {
   const [tab, setTab] = useState('login');
@@ -32,8 +32,8 @@ export default function AuthPage({ onAuthSuccess }) {
         errs.username = 'Username: 3-50 chars, letters/digits/_ only';
       }
     }
-    if (password.length < 8) {
-      errs.password = 'Password must be at least 8 characters';
+    if (!password || (tab === 'register' && (password.length < 8 || password.length > 128))) {
+      errs.password = tab === 'register' ? 'Password must be 8–128 characters' : 'Enter your password';
     }
     if (tab === 'register' && !/\d/.test(password)) {
       errs.password = 'Password must contain at least one digit';
@@ -44,7 +44,7 @@ export default function AuthPage({ onAuthSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (loading || !validate()) return;
     setLoading(true);
     setErrors({});
 
@@ -53,18 +53,14 @@ export default function AuthPage({ onAuthSuccess }) {
       const body = tab === 'login'
         ? { email, password }
         : { email, username, password };
-      const res = await axios.post(endpoint, body);
+      const res = await apiClient.post(endpoint, body);
       const data = res.data;
       localStorage.setItem('rag_token', data.access_token);
       if (onAuthSuccess) {
         onAuthSuccess(data.access_token, data.user);
       }
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.detail) {
-        setErrors({ general: err.response.data.detail });
-      } else {
-        setErrors({ general: 'Could not reach the server. Is the backend running?' });
-      }
+      setErrors({ general: getApiError(err) });
     } finally {
       setLoading(false);
     }
@@ -94,6 +90,7 @@ export default function AuthPage({ onAuthSuccess }) {
                 ? 'bg-slate-800 text-white shadow'
                 : 'text-slate-400 hover:text-white'
             }`}
+            disabled={loading}
             onClick={() => switchTab('login')}
           >
             Sign In
@@ -105,6 +102,7 @@ export default function AuthPage({ onAuthSuccess }) {
                 ? 'bg-slate-800 text-white shadow'
                 : 'text-slate-400 hover:text-white'
             }`}
+            disabled={loading}
             onClick={() => switchTab('register')}
           >
             Create Account
@@ -118,10 +116,12 @@ export default function AuthPage({ onAuthSuccess }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {tab === 'register' && (
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1.5">
+              <label htmlFor="auth-username" className="block text-xs font-medium text-slate-400 mb-1.5">
                 Username
               </label>
               <input
+                id="auth-username"
+                autoComplete="username"
                 type="text"
                 className={`w-full px-3.5 py-2.5 bg-slate-950/60 border rounded-xl text-xs text-white placeholder-slate-600 outline-none transition focus:ring-1 focus:ring-violet-500 ${
                   errors.username ? 'border-rose-500' : 'border-slate-800'
@@ -136,10 +136,12 @@ export default function AuthPage({ onAuthSuccess }) {
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+            <label htmlFor="auth-email" className="block text-xs font-medium text-slate-400 mb-1.5">
               Email Address
             </label>
             <input
+              id="auth-email"
+              autoComplete="email"
               type="email"
               className={`w-full px-3.5 py-2.5 bg-slate-950/60 border rounded-xl text-xs text-white placeholder-slate-600 outline-none transition focus:ring-1 focus:ring-violet-500 ${
                 errors.email ? 'border-rose-500' : 'border-slate-800'
@@ -153,11 +155,13 @@ export default function AuthPage({ onAuthSuccess }) {
             )}
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+            <label htmlFor="auth-password" className="block text-xs font-medium text-slate-400 mb-1.5">
               Password
             </label>
             <div className="relative">
               <input
+                id="auth-password"
+                autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
                 type={showPassword ? 'text' : 'password'}
                 className={`w-full px-3.5 py-2.5 bg-slate-950/60 border rounded-xl text-xs text-white placeholder-slate-600 outline-none transition focus:ring-1 focus:ring-violet-500 pr-10 ${
                   errors.password ? 'border-rose-500' : 'border-slate-800'
@@ -202,6 +206,7 @@ export default function AuthPage({ onAuthSuccess }) {
             <button
               type="button"
               className="text-violet-400 hover:underline font-semibold cursor-pointer"
+              disabled={loading}
               onClick={() => switchTab(tab === 'login' ? 'register' : 'login')}
             >
               {tab === 'login' ? 'Sign up' : 'Sign in'}
