@@ -160,9 +160,9 @@ async def connect_to_mongo():
     logger.info("Connecting to MongoDB...")
     try:
         motor_kwargs = {
-            "serverSelectionTimeoutMS": 2000,
-            "connectTimeoutMS": 2000,
-            "socketTimeoutMS": 2000,
+            "serverSelectionTimeoutMS": 10000,
+            "connectTimeoutMS": 10000,
+            "socketTimeoutMS": 10000,
         }
         if "mongodb+srv://" in settings.MONGODB_URL or "ssl=true" in settings.MONGODB_URL.lower() or "tls=true" in settings.MONGODB_URL.lower():
             motor_kwargs["tlsCAFile"] = certifi.where()
